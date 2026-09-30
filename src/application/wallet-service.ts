@@ -1,6 +1,6 @@
 import { post, type LedgerIntent, type WalletSnapshot } from "../domain/ledger.js";
 import { DomainError } from "../domain/wallet.js";
-import { parseNewMovement, positiveInt, type Movement, type NewMovement } from "../http/dto.js";
+import { parseDescriptionPatch, parseNewMovement, positiveInt, type Movement, type NewMovement } from "../http/dto.js";
 import type { MovementFilter, WalletRepository } from "./ports/wallet-repository.js";
 
 const toIntent = (input: NewMovement): LedgerIntent =>
@@ -66,7 +66,7 @@ export class WalletService {
 
   async updateDescription(rawId: unknown, body: unknown): Promise<Movement> {
     const id = positiveInt(rawId, "id");
-    const description = descriptionOf(body);
+    const description = parseDescriptionPatch(body);
     const movement = await this.repo.updateDescription(id, description);
     if (!movement) {
       throw new DomainError("NOT_FOUND", "movement not found");
@@ -87,23 +87,3 @@ export class WalletService {
     }
   }
 }
-
-const descriptionOf = (body: unknown): string | null => {
-  const raw = typeof body === "object" && body !== null ? (body as Record<string, unknown>) : {};
-  for (const key of Object.keys(raw)) {
-    if (key !== "descripcion") {
-      throw new DomainError("VALIDATION", `${key} is not editable`);
-    }
-  }
-  if (!("descripcion" in raw)) {
-    throw new DomainError("VALIDATION", "descripcion is the only editable field");
-  }
-  const descripcion = raw.descripcion;
-  if (descripcion !== null && typeof descripcion !== "string") {
-    throw new DomainError("VALIDATION", "descripcion must be a string or null");
-  }
-  if (typeof descripcion === "string" && descripcion.length > 200) {
-    throw new DomainError("VALIDATION", "descripcion must be at most 200 characters");
-  }
-  return descripcion;
-};

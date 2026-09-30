@@ -43,30 +43,49 @@ export const parseNewMovement = (body: unknown): NewMovement => {
   if (descripcion === undefined || descripcion === null) {
     return { asistente_id, tipo, monto };
   }
-  if (typeof descripcion !== "string") {
-    throw invalid("descripcion must be a string");
+  return { asistente_id, tipo, monto, descripcion: text(descripcion, "descripcion must be a string") };
+};
+
+/**
+ * The whitelist of a patch. Naming any other key is refused even when the
+ * movement exists, and so is a patch that changes nothing.
+ */
+export const parseDescriptionPatch = (body: unknown): string | null => {
+  const raw = asRecord(body);
+  const notEditable = Object.keys(raw).find((key) => key !== "descripcion");
+  if (notEditable !== undefined) {
+    throw invalid(`${notEditable} is not editable`);
   }
-  if (descripcion.length > DESCRIPTION_MAX) {
+  if (!("descripcion" in raw)) {
+    throw invalid("descripcion is the only editable field");
+  }
+  return raw.descripcion === null ? null : text(raw.descripcion, "descripcion must be a string or null");
+};
+
+/** A bounded string, or the reason it is not one. */
+const text = (value: unknown, typeError: string): string => {
+  if (typeof value !== "string") {
+    throw invalid(typeError);
+  }
+  if (value.length > DESCRIPTION_MAX) {
     throw invalid(`descripcion must be at most ${DESCRIPTION_MAX} characters`);
   }
-  return { asistente_id, tipo, monto, descripcion };
+  return value;
 };
 
 /** Route and query values arrive as text, so they are accepted as text. */
 export const positiveInt = (value: unknown, field: string): number => {
   const parsed = typeof value === "string" ? Number(value) : value;
-  if (typeof parsed !== "number" || !Number.isInteger(parsed) || parsed < 1) {
-    throw invalid(`${field} must be a positive integer`);
-  }
-  return parsed;
+  return isPositiveInt(parsed) ? parsed : fail(field);
 };
 
 /** A JSON body value must already be a number. */
-export const bodyInt = (value: unknown, field: string): number => {
-  if (typeof value !== "number" || !Number.isInteger(value) || value < 1) {
-    throw invalid(`${field} must be a positive integer`);
-  }
-  return value;
+export const bodyInt = (value: unknown, field: string): number => (isPositiveInt(value) ? value : fail(field));
+
+const isPositiveInt = (value: unknown): value is number => typeof value === "number" && Number.isInteger(value) && value > 0;
+
+const fail = (field: string): never => {
+  throw invalid(`${field} must be a positive integer`);
 };
 
 const asRecord = (body: unknown): Record<string, unknown> =>

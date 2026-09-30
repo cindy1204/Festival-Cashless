@@ -8,6 +8,12 @@ const GET = "/api/movimientos";
 before(cleanup);
 after(cleanup);
 
+/** What the untouched wallet held before this run, so the check needs no fixture number. */
+let untouched = 0;
+before(async () => {
+  untouched = await saldo(1);
+});
+
 const error = async (method: string, path: string, expected = 400, body?: unknown) => {
   const response = await call(method, path, body);
   assert.equal(response.status, expected, `${method} ${path} -> ${JSON.stringify(response.body)}`);
@@ -124,7 +130,7 @@ test("an unknown route answers 404 with the error envelope", async (t) => {
   await error("GET", "/api/no-existe", 404);
 });
 
-test("the preloaded balance of the attendee is untouched by the suite", async (t) => {
+test("the balance of a wallet the suite never writes to is untouched", async (t) => {
   t.after(purge);
-  assert.equal(await saldo(1), 150_000);
+  assert.equal(await saldo(1), untouched);
 });

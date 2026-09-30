@@ -26,7 +26,6 @@ export interface WalletRepository {
   /** Read-only aggregate, evaluated in SQL and never in JavaScript. */
   balance(attendeeId: number): Promise<Money>;
 
-  find(id: number): Promise<Movement | null>;
   findActive(id: number): Promise<Movement | null>;
   list(filter: MovementFilter): Promise<{ rows: Movement[]; total: number }>;
   updateDescription(id: number, description: string | null): Promise<Movement | null>;

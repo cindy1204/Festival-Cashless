@@ -14,7 +14,6 @@
     "verify": "npm run typecheck && npm test && npm run test:api",
     "test": "tsx --test tests/unit/*.test.ts",
     "test:api": "tsx --test tests/http/*.test.ts",
-    "test:db": "tsx --test --test-concurrency=1 tests/db/*.test.ts",
     "postinstall": "prisma skills sync || exit 0"
   },
   "repository": {

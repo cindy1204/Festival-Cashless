@@ -13,9 +13,11 @@ concurrency:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    # Nothing here listens on a port, resolves a name or reaches a database.
-    # The application is driven in process against a fake repository, so a
-    # green run says something about the code and not about the day.
+    # No service, no database, no name to resolve. The http suite listens on an
+    # ephemeral port on the loopback and talks to it over a real socket, so the
+    # requests really are asynchronous and really do interleave, but nothing
+    # here depends on a machine being up: a green run says something about the
+    # code and not about the day.
     env:
       CI: "true"
 
@@ -35,11 +37,6 @@ jobs:
       - name: Generate the prisma client
         run: npx prisma generate
 
-      - name: Type check
-        run: npm run typecheck
-
-      - name: Unit tests
-        run: npm test
-
-      - name: Http tests
-        run: npm run test:api
+      # The same single command a developer runs before pushing.
+      - name: Verify
+        run: npm run verify

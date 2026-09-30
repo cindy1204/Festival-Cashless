@@ -19,8 +19,10 @@ type Db = PrismaClient | Tx;
 export class PrismaWalletRepository implements WalletRepository {
   constructor(private readonly db: PrismaClient) {}
 
-  attendeeExists(attendeeId: number): Promise<boolean> {
-    return this.db.asistentes.count({ where: { id: attendeeId } }).then((count) => count > 0);
+  /** Existence is a key lookup, not a scan: count() would read every row of the table. */
+  async attendeeExists(attendeeId: number): Promise<boolean> {
+    const found = await this.db.asistentes.findUnique({ where: { id: attendeeId }, select: { id: true } });
+    return found !== null;
   }
 
   /**

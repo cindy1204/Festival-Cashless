@@ -5,6 +5,7 @@ import { WalletService } from "../application/wallet-service.js";
 import { DomainError, MOVEMENT_TYPES, type MovementType } from "../domain/wallet.js";
 import { positiveInt } from "./dto.js";
 
+const FIRST_PAGE = 1;
 const DEFAULT_LIMIT = 10;
 const MAX_LIMIT = 50;
 
@@ -16,7 +17,7 @@ interface Listing {
 
 /** Defaults, upper bound and filter validation in one place, shared by the count and the page. */
 const listing = (query: Request["query"]): Listing => {
-  const currentPage = positiveInt(query.page ?? DEFAULT_LIMIT, "page");
+  const currentPage = positiveInt(query.page ?? FIRST_PAGE, "page");
   const limit = positiveInt(query.limit ?? DEFAULT_LIMIT, "limit");
   if (limit > MAX_LIMIT) {
     throw invalid(`limit must be at most ${MAX_LIMIT}`);

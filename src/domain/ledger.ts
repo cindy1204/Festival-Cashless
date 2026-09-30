@@ -1,4 +1,4 @@
-import { DomainError, type MovementType } from "./wallet.js";
+import { DomainError, MONEY_MAX, type MovementType } from "./wallet.js";
 
 /** Money is a whole number of pesos. Fractional or unsafe values are not money. */
 export type Money = number;
@@ -56,6 +56,10 @@ export type Decision = { readonly ok: true; readonly posting: Posting } | { read
  * that decides whether a balance may go negative.
  */
 export const post = (intent: LedgerIntent, snapshot: WalletSnapshot): Decision => {
+  const malformed = check(intent, snapshot);
+  if (malformed) {
+    return { ok: false, error: malformed };
+  }
   const projection = intent.kind === "reversal" ? reverse(intent.movementId, snapshot) : record(intent, snapshot);
   if ("error" in projection) {
     return { ok: false, error: projection.error };
@@ -123,6 +127,31 @@ const reverse = (movementId: number, snapshot: WalletSnapshot): Decision => {
 };
 
 const signed = (direction: Direction, amount: Money): Money => (direction === "credit" ? amount : -amount);
+
+/**
+ * The ledger is reachable by more than the HTTP parser, so it checks its own
+ * inputs. A request layer that forgot a rule must not turn into a posting.
+ */
+const check = (intent: LedgerIntent, snapshot: WalletSnapshot): DomainError | null => {
+  if (!isPositiveInteger(snapshot.attendeeId)) {
+    return new DomainError("VALIDATION", "attendeeId must be a positive integer");
+  }
+  if (!Number.isSafeInteger(snapshot.balance)) {
+    return new DomainError("CONFLICT", "stored balance is not a whole number of pesos");
+  }
+  if (intent.kind === "reversal") {
+    return isPositiveInteger(intent.movementId) ? null : new DomainError("VALIDATION", "movementId must be a positive integer");
+  }
+  if (!isPositiveInteger(intent.attendeeId)) {
+    return new DomainError("VALIDATION", "attendeeId must be a positive integer");
+  }
+  if (!Number.isSafeInteger(intent.amount) || intent.amount <= 0) {
+    return new DomainError("VALIDATION", "amount must be a positive whole number of pesos");
+  }
+  return intent.amount > MONEY_MAX ? new DomainError("VALIDATION", `amount must be at most ${MONEY_MAX}`) : null;
+};
+
+const isPositiveInteger = (value: number): boolean => Number.isSafeInteger(value) && value > 0;
 
 /** The invariants a posting must satisfy to be safe to persist. */
 const isSound = (posting: Posting): boolean => {

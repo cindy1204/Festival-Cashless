@@ -30,7 +30,12 @@ export const call = async (method: string, path: string, body?: unknown): Promis
   }
   const response = await fetch((await baseUrl()) + path, init);
   const text = await response.text();
-  return { status: response.status, body: text ? JSON.parse(text) : null };
+  const parsed: any = text ? JSON.parse(text) : null;
+  // Every created row is tracked, no matter which assertion made the request.
+  if (response.status === 201 && typeof parsed?.data?.id === "number") {
+    created.add(parsed.data.id);
+  }
+  return { status: response.status, body: parsed };
 };
 
 export const create = async (asistente_id: number, tipo: "RECARGA" | "CONSUMO", monto: number, description = TAG): Promise<any> => {
@@ -38,11 +43,18 @@ export const create = async (asistente_id: number, tipo: "RECARGA" | "CONSUMO", 
   if (status !== 201) {
     throw new Error(`create failed: ${status} ${JSON.stringify(body)}`);
   }
-  created.add(body.data.id);
   return body.data;
 };
 
 export const saldo = async (asistenteId: number): Promise<number> => (await call("GET", `/api/billeteras/${asistenteId}/saldo`)).body.data.saldo;
+
+/** Removes only the rows this run created, so every test starts from a clean balance. */
+export const purge = async (): Promise<void> => {
+  if (created.size > 0) {
+    await prisma().movimientos.deleteMany({ where: { id: { in: [...created] } } });
+    created.clear();
+  }
+};
 
 /** Idempotent: it removes the rows this suite created, by tag or by id, and nothing else. */
 export const cleanup = async (): Promise<void> => {

@@ -1,4 +1,4 @@
-import { DomainError, DESCRIPTION_MAX, isMoney, isMovementType, RECHARGE_MAX, RECHARGE_MIN, type MovementType } from "../domain/wallet.js";
+import { DomainError, DESCRIPTION_MAX, INT_MAX, isMoney, isMovementType, RECHARGE_MAX, RECHARGE_MIN, type MovementType } from "../domain/wallet.js";
 
 export interface Movement {
   readonly id: number;
@@ -96,7 +96,9 @@ export const bodyInt = (value: unknown, field: string): number => (isPositiveInt
 
 const DECIMAL = /^[0-9]+$/;
 
-const isPositiveInt = (value: unknown): value is number => typeof value === "number" && Number.isInteger(value) && value > 0;
+/** A positive whole number the `int` columns can hold. */
+const isPositiveInt = (value: unknown): value is number =>
+  typeof value === "number" && Number.isInteger(value) && value > 0 && value <= INT_MAX;
 
 const fail = (field: string): never => {
   throw invalid(`${field} must be a positive integer`);

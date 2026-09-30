@@ -9,8 +9,15 @@ export const RECHARGE_MIN = 10_000;
 export const RECHARGE_MAX = 2_000_000;
 export const DESCRIPTION_MAX = 200;
 
-/** Column upper bound: an amount that cannot be stored must never reach Prisma as a 500. */
-export const MONEY_MAX = 2_147_483_647;
+/**
+ * Every column this service owns is a PostgreSQL `int`. A value the column
+ * cannot hold is a bad request, never a driver error, so the range is checked
+ * here instead of being discovered by the database as a 500.
+ */
+export const INT_MAX = 2_147_483_647;
+
+/** The same bound seen from the money: an amount that cannot be stored. */
+export const MONEY_MAX = INT_MAX;
 
 export type ErrorCode = "VALIDATION" | "NOT_FOUND" | "CONFLICT";
 

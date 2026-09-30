@@ -2,7 +2,7 @@ import { Router, type Request, type Response } from "express";
 
 import type { MovementFilter } from "../application/ports/wallet-repository.js";
 import { WalletService } from "../application/wallet-service.js";
-import { DomainError, MOVEMENT_TYPES, type MovementType } from "../domain/wallet.js";
+import { DomainError, INT_MAX, MOVEMENT_TYPES, type MovementType } from "../domain/wallet.js";
 import { positiveInt } from "./dto.js";
 
 const FIRST_PAGE = 1;
@@ -28,13 +28,25 @@ const listing = (query: Request["query"]): Listing => {
   }
   return {
     filter: {
-      page: { limit, offset: (currentPage - 1) * limit },
+      page: { limit, offset: offsetOf(currentPage, limit) },
       ...(asistente_id === undefined ? {} : { attendeeId: positiveInt(asistente_id, "asistente_id") }),
       ...(tipo === undefined ? {} : { type: tipo }),
     },
     currentPage,
     limit,
   };
+};
+
+/**
+ * A page and a limit that are each valid still multiply into an offset the
+ * `int` column cannot hold, so the product is the value that has to be bounded.
+ */
+const offsetOf = (currentPage: number, limit: number): number => {
+  const offset = (currentPage - 1) * limit;
+  if (offset > INT_MAX) {
+    throw invalid(`page is too far to read`);
+  }
+  return offset;
 };
 
 export const walletRoutes = (service: WalletService): Router => {

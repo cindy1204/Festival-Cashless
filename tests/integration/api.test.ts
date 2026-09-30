@@ -33,6 +33,17 @@ test("pagination defaults to page 1 and limit 10", async (t) => {
   assert.equal(body.pagination.totalPages, Math.ceil(body.pagination.total / 10));
 });
 
+test("the default listing returns rows, not a later empty page", async (t) => {
+  t.after(purge);
+  const byDefault = (await call("GET", GET)).body;
+  const explicit = (await call("GET", `${GET}?page=1`)).body;
+  // The metadata can be right while the offset points past the end, so the
+  // rows themselves have to be compared.
+  assert.ok(byDefault.pagination.total > 0, "there is always something to list");
+  assert.deepEqual(byDefault.data, explicit.data);
+  assert.equal(byDefault.data.length, Math.min(10, byDefault.pagination.total));
+});
+
 test("the page and the total share the same predicate", async (t) => {
   t.after(purge);
   const query = `${GET}?limit=50&asistente_id=2`;

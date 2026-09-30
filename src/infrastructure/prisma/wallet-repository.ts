@@ -16,6 +16,16 @@ const ACTIVE_ONLY = { state: ACTIVE } as const;
 type Tx = Prisma.TransactionClient;
 type Db = PrismaClient | Tx;
 
+/**
+ * A writer arrives, takes a connection from the pool and only then waits for
+ * the lock, so a burst aimed at one attendee queues twice: once for a free
+ * connection and once for its turn. Each holder finishes in milliseconds, but
+ * Prisma abandons a transaction that has waited two seconds for a connection,
+ * which answered a perfectly ordinary burst with a 500. The queue is given
+ * room here, and whatever still does not fit is reported as a busy service.
+ */
+const QUEUE = { maxWait: 15_000, timeout: 15_000 } as const;
+
 export class PrismaWalletRepository implements WalletRepository {
   constructor(private readonly db: PrismaClient) {}
 
@@ -34,7 +44,7 @@ export class PrismaWalletRepository implements WalletRepository {
     return this.db.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(${LOCK_NAMESPACE}, ${attendeeId})`;
       return fn(locked(tx, attendeeId));
-    });
+    }, QUEUE);
   }
 
   balance(attendeeId: number): Promise<number> {

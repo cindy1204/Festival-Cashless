@@ -23,6 +23,12 @@ export const errorHandler = (error: unknown, _req: Request, res: Response, next:
     res.status(400).json({ error: "request body is not valid JSON" });
     return;
   }
+  if (isOverloaded(error)) {
+    // Every connection and every slot for this attendee is taken. Nothing is
+    // wrong with the request, and the same request may well succeed now.
+    res.status(503).json({ error: "the service is busy, try again" });
+    return;
+  }
   // Unexpected failures never leak a message or a stack trace to the client.
   console.error("[wallet] unexpected error", error);
   res.status(500).json({ error: "internal server error" });
@@ -31,3 +37,7 @@ export const errorHandler = (error: unknown, _req: Request, res: Response, next:
 /** The body parser reports a broken payload as a request error, not as a bug. */
 const isMalformedBody = (error: unknown): boolean =>
   typeof error === "object" && error !== null && "type" in error && error.type === "entity.parse.failed";
+
+/** Prisma P2028: it could not get a connection to start the transaction in time. */
+const isOverloaded = (error: unknown): boolean =>
+  typeof error === "object" && error !== null && "code" in error && error.code === "P2028";

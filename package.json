@@ -10,7 +10,9 @@
     "dev": "nodemon --ext ts,json --exec 'tsx ./src/app.ts'",
     "sync": "npx prisma db pull && npx prisma generate",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "postinstall": "prisma skills sync || exit 0"
+    "postinstall": "prisma skills sync || exit 0",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --noEmit"
   },
   "repository": {
     "type": "git",
@@ -38,7 +40,7 @@
     "@types/node": "^26.6.3",
     "@types/pg": "^8.23.1",
     "nodemon": "^3.1.14",
-    "prisma": "^8.0.0-rc.19",
+    "prisma": "^7.10.0",
     "tsx": "^4.23.15",
     "typescript": "^6.0.3"
   },

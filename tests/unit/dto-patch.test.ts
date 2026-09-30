@@ -79,6 +79,11 @@ test("a query value arrives as text and a body value never does", () => {
   assert.equal(positiveInt(42, "page"), 42);
   assert.equal(rejects(() => positiveInt("42.5", "page")), "VALIDATION");
   assert.equal(rejects(() => positiveInt("", "page")), "VALIDATION");
+  assert.equal(rejects(() => positiveInt("1e3", "page")), "VALIDATION", "exponent notation is not a page");
+  assert.equal(rejects(() => positiveInt("0x10", "page")), "VALIDATION", "hexadecimal is not a page");
+  assert.equal(rejects(() => positiveInt(" 42 ", "page")), "VALIDATION", "a page is not trimmed into a number");
+  assert.equal(rejects(() => positiveInt("42.0", "page")), "VALIDATION", "a decimal page is not a page");
+  assert.equal(rejects(() => positiveInt(["1", "2"], "page")), "VALIDATION", "a repeated parameter is not a value");
 
   assert.equal(bodyInt(42, "monto"), 42);
   assert.equal(rejects(() => bodyInt("42", "monto")), "VALIDATION");

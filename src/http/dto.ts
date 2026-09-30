@@ -78,14 +78,23 @@ const text = (value: unknown, typeError: string): string => {
   return value;
 };
 
-/** Route and query values arrive as text, so they are accepted as text. */
+/**
+ * Route and query values arrive as text, so they are accepted as text, but
+ * only as a plain run of digits. Number() would also read 0x10, 1e3 and
+ * " 42 " as numbers, and a query parameter has one spelling or none.
+ */
 export const positiveInt = (value: unknown, field: string): number => {
+  if (typeof value === "string" && !DECIMAL.test(value)) {
+    return fail(field);
+  }
   const parsed = typeof value === "string" ? Number(value) : value;
   return isPositiveInt(parsed) ? parsed : fail(field);
 };
 
 /** A JSON body value must already be a number. */
 export const bodyInt = (value: unknown, field: string): number => (isPositiveInt(value) ? value : fail(field));
+
+const DECIMAL = /^[0-9]+$/;
 
 const isPositiveInt = (value: unknown): value is number => typeof value === "number" && Number.isInteger(value) && value > 0;
 

@@ -4,10 +4,8 @@ import type { NextFunction, Request, Response } from "express";
 /** The contract maps each domain code to exactly one status. */
 const STATUS: Record<ErrorCode, number> = { VALIDATION: 400, NOT_FOUND: 404, CONFLICT: 409 };
 
-export const notFound = (message: string): DomainError => new DomainError("NOT_FOUND", message);
-
 export const routeNotFound = (_req: Request, _res: Response, next: NextFunction): void => {
-  next(notFound("route not found"));
+  next(new DomainError("NOT_FOUND", "route not found"));
 };
 
 export const errorHandler = (error: unknown, _req: Request, res: Response, next: NextFunction): void => {

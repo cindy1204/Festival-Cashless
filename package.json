@@ -12,7 +12,8 @@
     "test": "tsx --test tests/unit/*.test.ts",
     "postinstall": "prisma skills sync || exit 0",
     "typecheck": "tsc --noEmit",
-    "build": "tsc --noEmit"
+    "build": "tsc --noEmit",
+    "test:api": "tsx --test tests/integration/*.test.ts"
   },
   "repository": {
     "type": "git",

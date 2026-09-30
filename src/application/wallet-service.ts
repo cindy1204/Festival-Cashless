@@ -1,9 +1,9 @@
-import { compile, type WalletIntent, type WalletSnapshot } from "../domain/compiler.js";
+import { post, type LedgerIntent, type WalletSnapshot } from "../domain/ledger.js";
 import { DomainError } from "../domain/wallet.js";
 import { parseNewMovement, positiveInt, type Movement, type NewMovement } from "../http/dto.js";
 import type { MovementFilter, WalletRepository } from "./ports/wallet-repository.js";
 
-const toIntent = (input: NewMovement): WalletIntent =>
+const toIntent = (input: NewMovement): LedgerIntent =>
   input.tipo === "RECARGA"
     ? { kind: "recharge", attendeeId: input.asistente_id, amount: input.monto, ...pick(input.descripcion) }
     : { kind: "consumption", attendeeId: input.asistente_id, amount: input.monto, ...pick(input.descripcion) };
@@ -19,17 +19,17 @@ const notFound = (): never => {
  * Both mutations share it, so the balance invariant cannot be enforced in one
  * path and forgotten in the other.
  */
-const transact = async (repo: WalletRepository, intent: WalletIntent, attendeeId: number) => {
+const transact = async (repo: WalletRepository, intent: LedgerIntent, attendeeId: number) => {
   return repo.withLock(attendeeId, async (locked) => {
-    const movement = intent.kind === "cancel" ? await locked.movement(intent.movementId) : undefined;
-    const snapshot: WalletSnapshot = { balance: await locked.balance(), ...(movement ? { movement } : {}) };
+    const entry = intent.kind === "reversal" ? await locked.movement(intent.movementId) : undefined;
+    const snapshot: WalletSnapshot = { attendeeId, balance: await locked.balance(), ...(entry ? { entry } : {}) };
 
-    const decision = compile(intent, snapshot);
+    const decision = post(intent, snapshot);
     if (!decision.ok) {
       throw decision.error;
     }
-    // A null effect means the row stopped being ACTIVE while we waited for the lock.
-    return (await locked.apply(decision.plan)) ?? notFound();
+    // A null result means the entry stopped being ACTIVE while we waited for the lock.
+    return (await locked.apply(decision.posting)) ?? notFound();
   });
 };
 
@@ -43,16 +43,16 @@ export class WalletService {
   }
 
   /** Resolve the owner before locking, then decide on data read under the lock. */
-  async cancel(rawId: string | number): Promise<Movement> {
+  async cancel(rawId: unknown): Promise<Movement> {
     const id = positiveInt(rawId, "id");
     const owner = await this.repo.findActive(id);
     if (!owner) {
       throw new DomainError("NOT_FOUND", "movement not found");
     }
-    return transact(this.repo, { kind: "cancel", movementId: id }, owner.asistente_id);
+    return transact(this.repo, { kind: "reversal", movementId: id }, owner.asistente_id);
   }
 
-  async get(rawId: string | number): Promise<Movement> {
+  async get(rawId: unknown): Promise<Movement> {
     const movement = await this.repo.findActive(positiveInt(rawId, "id"));
     if (!movement) {
       throw new DomainError("NOT_FOUND", "movement not found");
@@ -64,7 +64,7 @@ export class WalletService {
     return this.repo.list(filter);
   }
 
-  async updateDescription(rawId: string | number, body: unknown): Promise<Movement> {
+  async updateDescription(rawId: unknown, body: unknown): Promise<Movement> {
     const id = positiveInt(rawId, "id");
     const description = descriptionOf(body);
     const movement = await this.repo.updateDescription(id, description);
@@ -74,7 +74,7 @@ export class WalletService {
     return movement;
   }
 
-  async balance(rawAttendeeId: string | number): Promise<{ asistente_id: number; saldo: number }> {
+  async balance(rawAttendeeId: unknown): Promise<{ asistente_id: number; saldo: number }> {
     const asistente_id = positiveInt(rawAttendeeId, "asistenteId");
     await this.requireAttendee(asistente_id);
     return { asistente_id, saldo: await this.repo.balance(asistente_id) };

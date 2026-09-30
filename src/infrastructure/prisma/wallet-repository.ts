@@ -2,7 +2,7 @@ import type { PrismaClient, Prisma } from "../../generated/prisma/client.js";
 import { ACTIVE, REMOVED, type MovementType } from "../../domain/wallet.js";
 import type { Movement } from "../../http/dto.js";
 import type { LockedWallet, MovementFilter, WalletRepository } from "../../application/ports/wallet-repository.js";
-import type { WalletPlan } from "../../domain/compiler.js";
+import type { Posting } from "../../domain/ledger.js";
 
 /** Namespaces the advisory lock so this service cannot collide with another module. */
 const LOCK_NAMESPACE = 10;
@@ -73,18 +73,19 @@ const locked = (tx: Tx, attendeeId: number): LockedWallet => ({
     const row = await tx.movimientos.findFirst({ where: { id, ...ACTIVE_ONLY }, select: SELECT });
     return row && { id: row.id, attendeeId: row.asistente_id, type: row.tipo as MovementType, amount: row.monto };
   },
-  apply: (plan) => applyPlan(tx, plan),
+  apply: (posting) => write(tx, posting),
 });
 
-const applyPlan = (tx: Tx, plan: WalletPlan): Promise<Movement | null> => {
-  if (plan.effect === "insert") {
-    const data = { asistente_id: plan.attendeeId, tipo: plan.type, monto: plan.amount, descripcion: plan.description ?? null, state: ACTIVE };
+const write = (tx: Tx, posting: Posting): Promise<Movement | null> => {
+  if (posting.reverses === null) {
+    const data = { asistente_id: posting.attendeeId, tipo: posting.type, monto: posting.amount, descripcion: posting.description ?? null, state: ACTIVE };
     return tx.movimientos.create({ data, select: SELECT }).then(movement);
   }
-  // The state predicate makes the write itself the concurrency check, and the
-  // row comes back from the same statement instead of from a second query.
+  // The state the decision read is the condition of the write, so the write is
+  // itself the concurrency check, and it returns the row it closed.
+  const { id, state } = posting.reverses;
   return tx.movimientos
-    .updateManyAndReturn({ where: { id: plan.movementId, ...ACTIVE_ONLY }, data: { state: REMOVED, ...NOW() }, select: SELECT })
+    .updateManyAndReturn({ where: { id, state }, data: { state: REMOVED, ...NOW() }, select: SELECT })
     .then((rows) => maybeMovement(rows[0] ?? null));
 };
 

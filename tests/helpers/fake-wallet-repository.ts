@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 
 
 import { DomainError } from "../../src/domain/wallet.js";
-import type { ActiveMovement } from "../../src/domain/compiler.js";
+import type { ActiveEntry } from "../../src/domain/ledger.js";
 import type { Movement } from "../../src/http/dto.js";
 import type { LockedWallet, WalletRepository } from "../../src/application/ports/wallet-repository.js";
 
@@ -68,26 +68,26 @@ export class FakeWalletRepository implements WalletRepository {
         const row = await this.findActive(id);
         return row ? this.toActive(row) : null;
       },
-      apply: async (plan) => {
-        if (plan.effect === "remove") {
-          const row = this.rows.get(plan.movementId);
-          if (!row || row.state !== "ACTIVE") {
+      apply: async (posting) => {
+        if (posting.reverses !== null) {
+          const row = this.rows.get(posting.reverses.id);
+          if (!row || row.state !== posting.reverses.state) {
             return null;
           }
           const removed = { ...row, state: "REMOVED" };
           this.rows.set(removed.id, removed);
           return removed;
         }
-        const created = this.seed(plan.attendeeId, plan.type, plan.amount);
-        if (plan.description !== undefined) {
-          this.rows.set(created.id, { ...created, descripcion: plan.description });
+        const created = this.seed(posting.attendeeId, posting.type, posting.amount);
+        if (posting.description !== undefined) {
+          this.rows.set(created.id, { ...created, descripcion: posting.description });
         }
         return this.rows.get(created.id)!;
       },
     };
   }
 
-  private toActive(row: Movement): ActiveMovement {
+  private toActive(row: Movement): ActiveEntry {
     return { id: row.id, attendeeId: row.asistente_id, type: row.tipo, amount: row.monto };
   }
 }

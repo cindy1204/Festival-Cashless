@@ -1,4 +1,4 @@
-import type { ActiveMovement, Money, WalletPlan } from "../../domain/compiler.js";
+import type { ActiveEntry, Money, Posting } from "../../domain/ledger.js";
 import type { Movement } from "../../http/dto.js";
 
 export interface Page {
@@ -33,7 +33,7 @@ export interface WalletRepository {
 
 export interface LockedWallet {
   balance(): Promise<Money>;
-  movement(id: number): Promise<ActiveMovement | null>;
+  movement(id: number): Promise<ActiveEntry | null>;
   /** Executes the effect; a null result means the row is no longer ACTIVE. */
-  apply(plan: WalletPlan): Promise<Movement | null>;
+  apply(posting: Posting): Promise<Movement | null>;
 }

@@ -62,6 +62,31 @@ test("descripcion longer than the column is rejected", () => {
   assert.equal(parseNewMovement({ asistente_id: 2, tipo: "CONSUMO", monto: 1, descripcion: "a".repeat(200) }).descripcion?.length, 200);
 });
 
+test("an empty or blank description is stored as it arrived", () => {
+  // The contract fixes optionality and a maximum, not a minimum and not
+  // trimming, so nothing is added to the text and nothing is taken from it.
+  for (const descripcion of ["", " ", "\t\n"]) {
+    assert.equal(
+      parseNewMovement({ asistente_id: 2, tipo: "CONSUMO", monto: 1, descripcion }).descripcion,
+      descripcion,
+    );
+  }
+});
+
+test("fields the contract does not name are ignored, not refused", () => {
+  const movement = parseNewMovement({
+    asistente_id: 2,
+    tipo: "RECARGA",
+    monto: 50_000,
+    state: "REMOVED",
+    id: 424_242,
+    created_at: "2020-01-01",
+    otra_cosa: { anidado: true },
+  });
+  assert.deepEqual(movement, { asistente_id: 2, tipo: "RECARGA", monto: 50_000 });
+  assert.ok(!("state" in movement), "a server-side field never reaches the decision");
+});
+
 test("route ids are parsed as positive integers", () => {
   assert.equal(positiveInt("42", "id"), 42);
   assert.equal(positiveInt(42, "id"), 42);

@@ -36,6 +36,14 @@ test("server side fields in the body are ignored", async (t) => {
   assert.notEqual(data.id, 424_242);
 });
 
+test("an unnamed field is ignored and a blank description is kept as it arrived", async (t) => {
+  await scenario(t);
+  const { data } = await post({ asistente_id: 2, tipo: "RECARGA", monto: 50_000, descripcion: "  ", otra_cosa: [1, 2] }, 201);
+  assert.deepEqual(Object.keys(data).sort(), ["asistente_id", "descripcion", "id", "monto", "state", "tipo"]);
+  assert.equal(data.descripcion, "  ", "the contract sets no minimum and no trimming, so none is applied");
+  assert.equal((await status("GET", `${R}/${data.id}`, 200)).data.descripcion, "  ");
+});
+
 test("a recharge moves the balance and a consumption takes it back", async (t) => {
   await scenario(t);
   const recharge = await create(2, "RECARGA", 50_000);

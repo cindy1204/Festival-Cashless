@@ -18,5 +18,5 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["src", "tests/unit", "tests/integration", "prisma.config.ts"]
+  "include": ["src", "tests", "prisma.config.ts"]
 }

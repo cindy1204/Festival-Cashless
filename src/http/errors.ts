@@ -19,7 +19,15 @@ export const errorHandler = (error: unknown, _req: Request, res: Response, next:
     res.status(STATUS[error.code]).json({ error: error.message });
     return;
   }
+  if (isMalformedBody(error)) {
+    res.status(400).json({ error: "request body is not valid JSON" });
+    return;
+  }
   // Unexpected failures never leak a message or a stack trace to the client.
   console.error("[wallet] unexpected error", error);
   res.status(500).json({ error: "internal server error" });
 };
+
+/** The body parser reports a broken payload as a request error, not as a bug. */
+const isMalformedBody = (error: unknown): boolean =>
+  typeof error === "object" && error !== null && "type" in error && error.type === "entity.parse.failed";

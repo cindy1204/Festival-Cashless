@@ -2,7 +2,7 @@ import { Router, type Request, type Response } from "express";
 
 import type { MovementFilter } from "../application/ports/wallet-repository.js";
 import { WalletService } from "../application/wallet-service.js";
-import { DomainError, INT_MAX, MOVEMENT_TYPES, type MovementType } from "../domain/wallet.js";
+import { DomainError, INT_MAX, isMovementType, type MovementType } from "../domain/wallet.js";
 import { positiveInt } from "./dto.js";
 
 const FIRST_PAGE = 1;
@@ -23,18 +23,23 @@ const listing = (query: Request["query"]): Listing => {
     throw invalid(`limit must be at most ${MAX_LIMIT}`);
   }
   const { asistente_id, tipo } = query;
-  if (tipo !== undefined && !isMovementType(tipo)) {
-    throw invalid("tipo must be RECARGA or CONSUMO");
-  }
   return {
     filter: {
       page: { limit, offset: offsetOf(currentPage, limit) },
       ...(asistente_id === undefined ? {} : { attendeeId: positiveInt(asistente_id, "asistente_id") }),
-      ...(tipo === undefined ? {} : { type: tipo }),
+      ...(tipo === undefined ? {} : { type: parseTipo(tipo) }),
     },
     currentPage,
     limit,
   };
+};
+
+/** The domain decides what a movement type is; this only reports it as a bad filter. */
+const parseTipo = (value: unknown): MovementType => {
+  if (!isMovementType(value)) {
+    throw invalid("tipo must be RECARGA or CONSUMO");
+  }
+  return value;
 };
 
 /**
@@ -81,8 +86,5 @@ export const walletRoutes = (service: WalletService): Router => {
 
   return router;
 };
-
-const isMovementType = (value: unknown): value is MovementType =>
-  typeof value === "string" && (MOVEMENT_TYPES as readonly string[]).includes(value);
 
 const invalid = (message: string): DomainError => new DomainError("VALIDATION", message);

@@ -1,4 +1,5 @@
 import type { ActiveEntry, Money, Posting } from "../../domain/ledger.js";
+import type { MovementType } from "../../domain/wallet.js";
 import type { Movement } from "../../http/dto.js";
 
 export interface Page {
@@ -9,7 +10,8 @@ export interface Page {
 export interface MovementFilter {
   readonly page: Page;
   readonly attendeeId?: number;
-  readonly type?: string;
+  /** Narrowed by the domain, so a filter cannot ask for a type that does not exist. */
+  readonly type?: MovementType;
 }
 
 /**

@@ -4,8 +4,8 @@ Everything you need to build your module.
 
 | Folder | Contains |
 |---|---|
-| `contratos/` | [Common conventions](contratos/CONVENCIONES.md) and the contract for each module |
-| `pruebas/` | The runner and the **public tests** for each module |
+| `contracts/` | [Common conventions](contracts/CONVENTIONS.md) and the contract for each module |
+| `tests/` | The runner and the **public tests** for each module |
 
 ## 1. Start the project (15 minutes)
 
@@ -50,13 +50,13 @@ npm run sync
 With your API running, from the kit folder:
 
 ```bash
-node pruebas/correr.mjs <module> http://localhost:3000
+node tests/run.mjs <module> http://localhost:3000
 ```
 
 Example:
 
 ```bash
-node pruebas/correr.mjs boleteria http://localhost:3000
+node tests/run.mjs boleteria http://localhost:3000
 ```
 
 Each failing test tells you which request it made and what your API responded. You only need Node 18 or higher; the runner does not install anything.

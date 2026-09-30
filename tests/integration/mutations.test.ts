@@ -130,6 +130,7 @@ test("patch accepts only descripcion and never changes the balance", async (t) =
   await status("PATCH", `${R}/${consumo.id}`, 400, { tipo: "RECARGA" });
   await status("PATCH", `${R}/${consumo.id}`, 400, { asistente_id: 3 });
   await status("PATCH", `${R}/${consumo.id}`, 400, {});
+  await status("PATCH", `${R}/${consumo.id}`, 400, { descripcion: null });
   await status("PATCH", `${R}/${consumo.id}`, 400, { descripcion: "a".repeat(201) });
 
   const { data } = await status("PATCH", `${R}/${consumo.id}`, 200, { descripcion: "Bar" });

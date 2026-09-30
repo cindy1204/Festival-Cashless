@@ -1,16 +1,13 @@
-import { after, before, test } from "node:test";
+import { beforeEach, test } from "node:test";
 import assert from "node:assert/strict";
 
-import { call, cleanup, create, purge, saldo, TAG } from "../helpers/api.js";
+import { TAG, call, create, reset, saldo } from "../helpers/api.js";
 
 const R = "/api/movimientos";
 
-before(cleanup);
-after(cleanup);
-
+beforeEach(reset);
 /** Every test starts with a clean wallet and removes the rows it created. */
 const scenario = async (t: { after: (fn: () => unknown) => void }): Promise<void> => {
-  t.after(purge);
   assert.equal(await saldo(2), 0, "the attendee starts the test with no movements");
 };
 

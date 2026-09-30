@@ -1,18 +1,17 @@
-import { after, before, test } from "node:test";
+import { beforeEach, test } from "node:test";
 import assert from "node:assert/strict";
 
-import { call, cleanup, create, purge, saldo } from "../helpers/api.js";
+import { call, create, reset, saldo, wallet } from "../helpers/api.js";
 
 const GET = "/api/movimientos";
 
-before(cleanup);
-after(cleanup);
+beforeEach(reset);
 
-/** What the untouched wallet held before this run, so the check needs no fixture number. */
-let untouched = 0;
-before(async () => {
-  untouched = await saldo(1);
-});
+/** The opening rows the harness gave attendee 1, added up by this test, not by the code. */
+const openingOf = (attendeeId: number): number =>
+  [...wallet.rows.values()]
+    .filter((row) => row.state === "ACTIVE" && row.asistente_id === attendeeId)
+    .reduce((sum, row) => sum + (row.tipo === "RECARGA" ? row.monto : -row.monto), 0);
 
 const error = async (method: string, path: string, expected = 400, body?: unknown) => {
   const response = await call(method, path, body);
@@ -21,8 +20,7 @@ const error = async (method: string, path: string, expected = 400, body?: unknow
   assert.ok(response.body.error.length > 0, "the envelope must carry a message");
 };
 
-test("an invalid page or limit is rejected", async (t) => {
-  t.after(purge);
+test("an invalid page or limit is rejected", async () => {
   await error("GET", `${GET}?limit=0`);
   await error("GET", `${GET}?limit=51`);
   await error("GET", `${GET}?page=-1`);
@@ -30,8 +28,7 @@ test("an invalid page or limit is rejected", async (t) => {
   await error("GET", `${GET}?limit=abc`);
 });
 
-test("pagination defaults to page 1 and limit 10", async (t) => {
-  t.after(purge);
+test("pagination defaults to page 1 and limit 10", async () => {
   const { status, body } = await call("GET", GET);
   assert.equal(status, 200);
   assert.equal(body.pagination.currentPage, 1);
@@ -39,8 +36,7 @@ test("pagination defaults to page 1 and limit 10", async (t) => {
   assert.equal(body.pagination.totalPages, Math.ceil(body.pagination.total / 10));
 });
 
-test("the default listing returns rows, not a later empty page", async (t) => {
-  t.after(purge);
+test("the default listing returns rows, not a later empty page", async () => {
   const byDefault = (await call("GET", GET)).body;
   const explicit = (await call("GET", `${GET}?page=1`)).body;
   // The metadata can be right while the offset points past the end, so the
@@ -50,8 +46,7 @@ test("the default listing returns rows, not a later empty page", async (t) => {
   assert.equal(byDefault.data.length, Math.min(10, byDefault.pagination.total));
 });
 
-test("the page and the total share the same predicate", async (t) => {
-  t.after(purge);
+test("the page and the total share the same predicate", async () => {
   const query = `${GET}?limit=50&asistente_id=2`;
   const before = (await call("GET", query)).body.pagination.total;
   const recharge = await create(2, "RECARGA", 50_000);
@@ -65,27 +60,23 @@ test("the page and the total share the same predicate", async (t) => {
   assert.equal((await call("GET", query)).body.pagination.total, before);
 });
 
-test("an invalid numeric filter is rejected", async (t) => {
-  t.after(purge);
+test("an invalid numeric filter is rejected", async () => {
   await error("GET", `${GET}?asistente_id=abc`);
   await error("GET", `${GET}?tipo=TRANSFERENCIA`);
 });
 
-test("a numeric filter keeps only that attendee", async (t) => {
-  t.after(purge);
+test("a numeric filter keeps only that attendee", async () => {
   const { body } = await call("GET", `${GET}?asistente_id=1&limit=50`);
   assert.ok(body.data.length >= 2);
   assert.ok(body.data.every((row: any) => row.asistente_id === 1));
 });
 
-test("a type filter keeps only that movement type", async (t) => {
-  t.after(purge);
+test("a type filter keeps only that movement type", async () => {
   const { body } = await call("GET", `${GET}?tipo=CONSUMO&limit=50`);
   assert.ok(body.data.every((row: any) => row.tipo === "CONSUMO"));
 });
 
-test("lists are ordered by id and exclude removed rows", async (t) => {
-  t.after(purge);
+test("lists are ordered by id and exclude removed rows", async () => {
   const first = await create(2, "RECARGA", 50_000);
   const second = await create(2, "CONSUMO", 1_000);
   assert.equal((await call("DELETE", `${GET}/${second.id}`)).status, 200);
@@ -98,8 +89,7 @@ test("lists are ordered by id and exclude removed rows", async (t) => {
   await call("DELETE", `${GET}/${first.id}`);
 });
 
-test("ids are validated before existence is checked", async (t) => {
-  t.after(purge);
+test("ids are validated before existence is checked", async () => {
   await error("GET", `${GET}/abc`);
   await error("GET", `${GET}/0`);
   await error("GET", `${GET}/-3`);
@@ -107,15 +97,13 @@ test("ids are validated before existence is checked", async (t) => {
   await error("DELETE", `${GET}/abc`);
 });
 
-test("a missing movement is 404 in every route by id", async (t) => {
-  t.after(purge);
+test("a missing movement is 404 in every route by id", async () => {
   await error("GET", `${GET}/999999`, 404);
   await error("PATCH", `${GET}/999999`, 404, { descripcion: "x" });
   await error("DELETE", `${GET}/999999`, 404);
 });
 
-test("the balance answers for a known attendee and 404 otherwise", async (t) => {
-  t.after(purge);
+test("the balance answers for a known attendee and 404 otherwise", async () => {
   const { status, body } = await call("GET", "/api/billeteras/1/saldo");
   assert.equal(status, 200);
   assert.deepEqual(Object.keys(body.data).sort(), ["asistente_id", "saldo"]);
@@ -125,12 +113,11 @@ test("the balance answers for a known attendee and 404 otherwise", async (t) => 
   await error("GET", "/api/billeteras/abc/saldo");
 });
 
-test("an unknown route answers 404 with the error envelope", async (t) => {
-  t.after(purge);
+test("an unknown route answers 404 with the error envelope", async () => {
   await error("GET", "/api/no-existe", 404);
 });
 
-test("the balance of a wallet the suite never writes to is untouched", async (t) => {
-  t.after(purge);
-  assert.equal(await saldo(1), untouched);
+test("the balance of a wallet the suite never writes to is untouched", async () => {
+  assert.equal(await saldo(1), openingOf(1), "a read of wallet 1 changed nothing about it");
+  assert.ok(openingOf(1) > 0, "and that wallet was not empty to begin with");
 });

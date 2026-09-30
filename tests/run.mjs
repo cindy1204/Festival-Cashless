@@ -1,3 +1,5 @@
+// Manual acceptance kit. It talks to a running server over http on purpose,
+// so it is not part of npm test and no pipeline may call it.
 #!/usr/bin/env node
 // Runs the official tests for a module against your API.
 //

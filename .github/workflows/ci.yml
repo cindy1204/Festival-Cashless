@@ -13,27 +13,10 @@ concurrency:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    # The integration suite needs a real PostgreSQL: it exercises the advisory
-    # lock, the aggregate and the conditional write, none of which a fake can
-    # reproduce. The database is thrown away with the job.
-    # Both versions are the ones the suite is verified against locally.
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: wallet
-        ports: ["5432:5432"]
-        options: >-
-          --health-cmd "pg_isready -U postgres -d wallet"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
-
+    # Nothing here listens on a port, resolves a name or reaches a database.
+    # The application is driven in process against a fake repository, so a
+    # green run says something about the code and not about the day.
     env:
-      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/wallet
-      PORT: "3000"
       CI: "true"
 
     steps:
@@ -47,14 +30,10 @@ jobs:
       - name: Install
         run: npm ci
 
-      # The schema is the only source of truth: it also carries the wallet
-      # indexes, so a database built from it is indexed from the first row.
-      # db push generates the client as part of the same step.
-      - name: Create the schema
-        run: npx prisma db push
-
-      - name: Seed the fixture
-        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/fixtures/minimal.sql
+      # Codegen only. The client is not committed, and generating it does not
+      # talk to a database, so the type check has something to read.
+      - name: Generate the prisma client
+        run: npx prisma generate
 
       - name: Type check
         run: npm run typecheck

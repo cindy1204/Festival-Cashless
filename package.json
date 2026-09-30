@@ -13,7 +13,7 @@
     "postinstall": "prisma skills sync || exit 0",
     "typecheck": "tsc --noEmit",
     "build": "tsc --noEmit",
-    "test:api": "tsx --test tests/integration/*.test.ts"
+    "test:api": "tsx --test --test-concurrency=1 tests/integration/*.test.ts"
   },
   "repository": {
     "type": "git",

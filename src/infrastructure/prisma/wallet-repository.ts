@@ -58,8 +58,12 @@ export class PrismaWalletRepository implements WalletRepository {
   }
 
   async updateDescription(id: number, description: string | null): Promise<Movement | null> {
-    const { count } = await this.db.movimientos.updateMany({ where: { id, ...ACTIVE_ONLY }, data: { descripcion: description, ...NOW() } });
-    return count === 0 ? null : this.findActive(id);
+    const rows = await this.db.movimientos.updateManyAndReturn({
+      where: { id, ...ACTIVE_ONLY },
+      data: { descripcion: description, ...NOW() },
+      select: SELECT,
+    });
+    return maybeMovement(rows[0] ?? null);
   }
 }
 
@@ -77,10 +81,11 @@ const applyPlan = (tx: Tx, plan: WalletPlan): Promise<Movement | null> => {
     const data = { asistente_id: plan.attendeeId, tipo: plan.type, monto: plan.amount, descripcion: plan.description ?? null, state: ACTIVE };
     return tx.movimientos.create({ data, select: SELECT }).then(movement);
   }
-  // The state predicate makes the write itself the concurrency check.
+  // The state predicate makes the write itself the concurrency check, and the
+  // row comes back from the same statement instead of from a second query.
   return tx.movimientos
-    .updateMany({ where: { id: plan.movementId, ...ACTIVE_ONLY }, data: { state: REMOVED, ...NOW() } })
-    .then(async ({ count }) => (count === 1 ? tx.movimientos.findUnique({ where: { id: plan.movementId }, select: SELECT }).then(maybeMovement) : null));
+    .updateManyAndReturn({ where: { id: plan.movementId, ...ACTIVE_ONLY }, data: { state: REMOVED, ...NOW() }, select: SELECT })
+    .then((rows) => maybeMovement(rows[0] ?? null));
 };
 
 const balance = async (db: Db, attendeeId: number): Promise<number> => {

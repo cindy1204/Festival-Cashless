@@ -77,7 +77,7 @@ export const walletRoutes = (service: WalletService): Router => {
 
   router.delete("/movimientos/:id", async (req: Request, res: Response) => {
     await service.cancel(req.params.id);
-    res.json({ message: "movement removed" });
+    res.json({});
   });
 
   router.get("/billeteras/:asistenteId/saldo", async (req: Request, res: Response) => {

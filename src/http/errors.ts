@@ -28,7 +28,11 @@ export const errorHandler = (error: unknown, _req: Request, res: Response, next:
     return;
   }
   // Unexpected failures never leak a message or a stack trace to the client.
-  console.error("[wallet] unexpected error", error);
+  const errorDetails =
+    error instanceof Error
+      ? { name: error.name, message: error.message }
+      : { type: typeof error };
+  console.error("[wallet] unexpected error", errorDetails);
   res.status(500).json({ error: "internal server error" });
 };
 

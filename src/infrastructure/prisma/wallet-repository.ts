@@ -1,8 +1,9 @@
 import type { PrismaClient, Prisma } from "../../generated/prisma/client.js";
-import { ACTIVE, REMOVED, type MovementType } from "../../domain/wallet.js";
+import { ACTIVE, REMOVED, isMovementType, type MovementType } from "../../domain/wallet.js";
 import type { Movement } from "../../http/dto.js";
 import type { LockedWallet, MovementFilter, WalletRepository } from "../../application/ports/wallet-repository.js";
 import type { Posting } from "../../domain/ledger.js";
+import { config } from "../../config.js";
 
 /** Namespaces the advisory lock so this service cannot collide with another module. */
 const LOCK_NAMESPACE = 10;
@@ -24,7 +25,7 @@ type Db = PrismaClient | Tx;
  * which answered a perfectly ordinary burst with a 500. The queue is given
  * room here, and whatever still does not fit is reported as a busy service.
  */
-const QUEUE = { maxWait: 15_000, timeout: 15_000 } as const;
+const QUEUE = { maxWait: config.transaction.maxWait, timeout: config.transaction.timeout } as const;
 
 export class PrismaWalletRepository implements WalletRepository {
   constructor(private readonly db: PrismaClient) {}
@@ -110,14 +111,19 @@ const balance = async (db: Db, attendeeId: number): Promise<number> => {
 
 type Row = { id: number; asistente_id: number; tipo: string; monto: number; descripcion: string | null; state: string };
 
-/** The column check constraint allows only RECARGA and CONSUMO, so the cast is safe. */
-const movement = (row: Row): Movement => ({
-  id: row.id,
-  asistente_id: row.asistente_id,
-  tipo: row.tipo as MovementType,
-  monto: row.monto,
-  descripcion: row.descripcion,
-  state: row.state,
-});
+/** The column check constraint allows only RECARGA and CONSUMO; validate defensively. */
+const movement = (row: Row): Movement => {
+  if (!isMovementType(row.tipo)) {
+    throw new Error(`invalid movement type stored: ${row.tipo}`);
+  }
+  return {
+    id: row.id,
+    asistente_id: row.asistente_id,
+    tipo: row.tipo,
+    monto: row.monto,
+    descripcion: row.descripcion,
+    state: row.state,
+  };
+};
 
 const maybeMovement = (row: Row | null): Movement | null => (row ? movement(row) : null);

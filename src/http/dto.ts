@@ -54,17 +54,17 @@ export const parseDescriptionPatch = (body: unknown): string | null => {
   const raw = asRecord(body);
   const notEditable = Object.keys(raw).find((key) => key !== "descripcion");
   if (notEditable !== undefined) {
-    throw invalid(`${notEditable} is not editable`);
+    throw invalid("only descripcion is editable");
   }
   if (!("descripcion" in raw)) {
-    throw invalid("descripcion is the only editable field");
+    throw invalid("only descripcion is editable");
   }
   // The column is nullable, but the API does not infer from that a way to erase
   // the text of a posted movement. A description is either text or absent.
   if (raw.descripcion === null) {
     throw invalid("descripcion must be a string");
   }
-  return text(raw.descripcion, "descripcion must be a string or null");
+  return text(raw.descripcion, "descripcion must be a string");
 };
 
 /** A bounded string, or the reason it is not one. */
